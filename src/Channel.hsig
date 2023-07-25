@@ -1,0 +1,28 @@
+{-# language KindSignatures #-}
+
+signature Channel where
+
+import Data.Kind (Type)
+import Data.Bytes.Chunks (Chunks)
+import Data.Bytes (Bytes)
+
+data Resource :: Type
+
+data M :: Type -> Type
+instance Functor M
+instance Applicative M
+instance Monad M
+
+send ::
+     Resource
+  -> Chunks
+  -> M ()
+
+-- | Receive a chunk of input. The caller does not specify a
+-- size hint. This helps make the test suite easier to write, but
+-- we should probably figure out a way to support size hints as well.
+--
+-- Postcondition: the returned chunked is not empty.
+receive ::
+     Resource
+  -> M Bytes
