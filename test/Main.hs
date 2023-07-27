@@ -67,9 +67,10 @@ evaluateM ::
   -> Chunks -- prebuilt response
   -> IO (Chunks,Bytes,Bodied Response)
 evaluateM (M f) resp = case f resp mempty of
-  Left e -> fail ("exchange transport failure: " ++ show e)
-  Right (input,output,r) -> case r of
-    Left e -> fail ("exchange protocol failure: " ++ show e)
+  (input,output,r) -> case r of
+    Left e -> case e of
+      E.Http err -> fail ("exchange http protocol failure: " ++ show err)
+      E.Transport err -> fail ("exchange transport failure: " ++ show err)
     Right b -> pure (input,output,b)
 
 getReqA :: Bodied Request

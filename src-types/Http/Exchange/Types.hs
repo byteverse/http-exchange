@@ -2,24 +2,25 @@
 {-# language DerivingStrategies #-}
 
 module Http.Exchange.Types
-  ( Exception(..)
+  ( HttpException(..)
   ) where
 
 import qualified Control.Exception as E
 
-data Exception
-  = UnrecognizedTransferEncoding
+data HttpException
+  = ChunkTooLarge
   | ContentLengthMalformed
   | ContentLengthTooLarge
-  | HeadersTooLarge
-  | HeadersMalformed
-  | PipelinedResponses
-  | ExpectedMoreInput
-  | ImplementationMistake
-  | ChunkTooLarge
+  | ExpectedCrlfAfterChunk
   | ExpectedCrlfAfterChunkLength
   | ExpectedCrlfBeforeChunkLength
-  | ExpectedCrlfAfterChunk
+  | HeadersMalformed
+  | HeadersTooLarge
+  | ImplementationMistake
+    -- ^ If this one happens, there is a mistake in this
+    -- library.
   | NonNumericChunkLength
+  | PipelinedResponses
+  | UnrecognizedTransferEncoding
   deriving stock (Show)
   deriving anyclass (E.Exception)

@@ -8,6 +8,8 @@ import Data.Bytes (Bytes)
 
 data Resource :: Type
 
+data TransportException :: Type
+
 data M :: Type -> Type
 instance Functor M
 instance Applicative M
@@ -16,7 +18,7 @@ instance Monad M
 send ::
      Resource
   -> Chunks
-  -> M ()
+  -> M (Either TransportException ())
 
 -- | Receive a chunk of input. The caller does not specify a
 -- size hint. This helps make the test suite easier to write, but
@@ -25,4 +27,4 @@ send ::
 -- Postcondition: the returned chunked is not empty.
 receive ::
      Resource
-  -> M Bytes
+  -> M (Either TransportException Bytes)

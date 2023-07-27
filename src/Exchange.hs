@@ -7,7 +7,7 @@ module Exchange
   , exchange
   ) where
 
-import Channel (M,Resource,send,receive)
+import Channel (M,Resource,TransportException,send,receive)
 import Control.Monad (when)
 import Data.Char (ord)
 import Data.Bytes (Bytes)
@@ -15,7 +15,7 @@ import Data.Bytes.Chunks (Chunks(ChunksCons,ChunksNil))
 import Data.Primitive (SmallArray)
 import Data.Word (Word64)
 import Http.Bodied (Bodied(Bodied))
-import Http.Exchange.Types (Exception)
+import Http.Exchange.Types (HttpException)
 import Http.Header (Header(Header))
 import Http.Message.Request (Request)
 import Http.Message.Response (Response)
@@ -35,9 +35,10 @@ import qualified Http.Message.Response as Response
 import qualified Http.Bodied
 
 data Continuation = Continuation
-  Instruction
-  Chunks -- these chunks are in reverse order
+  !Instruction
+  !Chunks -- these chunks are in reverse order
 
+-- Not exported
 data Instruction
   = More -- we are in the middle of a chunk
       !Int -- how much input was requested (zero is special)
@@ -58,33 +59,39 @@ data TransferEncoding
   = Nonchunked
   | Chunked
 
+data Exception
+  = Http !HttpException
+  | Transport !TransportException
+
 exchange ::
      Resource
   -> Bodied Request -- http request line and headers
   -> M (Either Exception (Bodied Response))
 exchange ctx req = do
   let enc = Request.bodiedToChunks req
-  send ctx enc
-  receiveResponse ctx
+  send ctx enc >>= \case
+    Left err -> pure (Left (Transport err))
+    Right () -> receiveResponse ctx
 
 receiveResponse ::
      Resource
   -> M (Either Exception (Bodied Response))
 receiveResponse !ctx = do
-  let go !oldOutput = do
-        newOutput <- receive ctx
-        let output = oldOutput <> newOutput
-        case splitEndOfHeaders output of
-          Nothing -> if Bytes.length output > 16000
-            then pure (Left E.HeadersTooLarge)
-            else go output
-          Just (pre,post) -> case Response.decode 128 pre of
-            Nothing -> pure (Left E.HeadersMalformed)
-            Just resp@Response.Response{headers} -> case lookupTransferEncoding headers of
-              Left err -> pure (Left err)
-              Right enc -> case enc of
-                Nonchunked -> handleNonchunkedBody ctx resp post headers
-                Chunked -> handleChunkedBody ctx resp post
+  let go !oldOutput = receive ctx >>= \case
+        Left err -> pure (Left (Transport err))
+        Right newOutput -> do
+          let output = oldOutput <> newOutput
+          case splitEndOfHeaders output of
+            Nothing -> if Bytes.length output > 16000
+              then pure (Left (Http E.HeadersTooLarge))
+              else go output
+            Just (pre,post) -> case Response.decode 128 pre of
+              Nothing -> pure (Left (Http E.HeadersMalformed))
+              Just resp@Response.Response{headers} -> case lookupTransferEncoding headers of
+                Left err -> pure (Left (Http err))
+                Right enc -> case enc of
+                  Nonchunked -> handleNonchunkedBody ctx resp post headers
+                  Chunked -> handleChunkedBody ctx resp post
   go mempty
 
 handleChunkedBody ::
@@ -92,9 +99,9 @@ handleChunkedBody ::
   -> Response
   -> Bytes
   -> M (Either Exception (Bodied Response))
-handleChunkedBody !ctx resp input0 = do
-  let go contA inputA = case Parser.parseBytes (parserChunked contA) inputA of
-        Parser.Failure e -> pure (Left e)
+handleChunkedBody !ctx resp !input0 = do
+  let go contA !inputA = case Parser.parseBytes (parserChunked contA) inputA of
+        Parser.Failure e -> pure (Left (Http e))
         Parser.Success (Parser.Slice _ leftoverLen contB) -> case leftoverLen of
           -- We expect that parserChunked consumes all input, so we check
           -- here to be certain that it actually does.
@@ -103,14 +110,14 @@ handleChunkedBody !ctx resp input0 = do
               { metadata = resp
               , body = Chunks.reverse revChunks
               }
-            _ -> do
-              inputB <- receive ctx
-              go contB inputB
-          _ -> pure (Left E.ImplementationMistake)
+            _ -> receive ctx >>= \case
+              Right inputB -> go contB inputB
+              Left err -> pure (Left (Transport err))
+          _ -> pure (Left (Http E.ImplementationMistake))
   let cont0 = Continuation (ChunkLength 0) ChunksNil
   go cont0 input0
 
-parserChunked :: Continuation -> Parser Exception s Continuation
+parserChunked :: Continuation -> Parser HttpException s Continuation
 parserChunked (Continuation instr chunks0) = case instr of
   Done -> Parser.fail E.ImplementationMistake
   More total n -> parserChunkedMore total n chunks0
@@ -118,7 +125,7 @@ parserChunked (Continuation instr chunks0) = case instr of
   ChunkLength acc -> parserChunkedChunkLength acc chunks0
   PostCr n -> parserChunkedChunkLengthPostCr n chunks0
 
-parserChunkedMore :: Int -> Int -> Chunks -> Parser Exception s Continuation
+parserChunkedMore :: Int -> Int -> Chunks -> Parser HttpException s Continuation
 parserChunkedMore !total !n !chunks0 = case n of
   -- If there are no more bytes left in the chunk, we start
   -- on the next decimal-encoded chunk length.
@@ -133,13 +140,13 @@ parserChunkedMore !total !n !chunks0 = case n of
         let chunks1 = ChunksCons b chunks0
         parserChunkedMore total (n - m) chunks1
 
-parserChunkedMorePost :: Int -> Chunks -> Parser Exception s Continuation
+parserChunkedMorePost :: Int -> Chunks -> Parser HttpException s Continuation
 parserChunkedMorePost !total !chunks0 = Latin.opt >>= \case
   Just '\r' -> parserChunkedMorePostCr total chunks0
   Just _ -> Parser.fail E.ExpectedCrlfAfterChunk
   Nothing -> pure (Continuation (More total 0) chunks0)
 
-parserChunkedMorePostCr :: Int -> Chunks -> Parser Exception s Continuation
+parserChunkedMorePostCr :: Int -> Chunks -> Parser HttpException s Continuation
 parserChunkedMorePostCr !total !chunks0 = Latin.opt >>= \case
   Just '\n' -> case total of
     0 -> pure (Continuation Done chunks0)
@@ -147,7 +154,7 @@ parserChunkedMorePostCr !total !chunks0 = Latin.opt >>= \case
   Just _ -> Parser.fail E.ExpectedCrlfAfterChunk
   Nothing -> pure (Continuation (MorePostCr total) chunks0)
 
-parserChunkedChunkLength :: Word64 -> Chunks -> Parser Exception s Continuation
+parserChunkedChunkLength :: Word64 -> Chunks -> Parser HttpException s Continuation
 parserChunkedChunkLength !acc !chunks0 = if acc > 100_000_000
   then Parser.fail E.ChunkTooLarge
   else Latin.opt >>= \case
@@ -165,7 +172,7 @@ parserChunkedChunkLength !acc !chunks0 = if acc > 100_000_000
       _ | c >= 'A', c <= 'F' -> parserChunkedChunkLength (acc * 16 + fromIntegral (ord c - (0x41 - 10))) chunks0
       _ -> Parser.fail E.NonNumericChunkLength
 
-parserChunkedChunkLengthPostCr :: Int -> Chunks -> Parser Exception s Continuation
+parserChunkedChunkLengthPostCr :: Int -> Chunks -> Parser HttpException s Continuation
 parserChunkedChunkLengthPostCr !n !chunks0 = Latin.opt >>= \case
   Just d -> case d of
     '\n' -> parserChunkedMore n n chunks0
@@ -177,17 +184,17 @@ parserChunkedChunkLengthPostCr !n !chunks0 = Latin.opt >>= \case
 
 handleNonchunkedBody :: Resource -> Response -> Bytes -> SmallArray Header -> M (Either Exception (Bodied Response))
 handleNonchunkedBody ctx resp !post !headers = case lookupContentLength headers of
-  Left err -> pure (Left err)
+  Left err -> pure (Left (Http err))
   Right len -> do
     let finish reversedChunks n = case compare n 0 of
-          LT -> pure (Left E.PipelinedResponses)
+          LT -> pure (Left (Http E.PipelinedResponses))
           EQ -> pure $ Right $ Bodied
             { metadata = resp
             , body = Chunks.reverse reversedChunks
             }
-          GT -> do
-            chunk <- receive ctx
-            finish (ChunksCons chunk reversedChunks) (n - Bytes.length chunk)
+          GT -> receive ctx >>= \case
+            Right chunk -> finish (ChunksCons chunk reversedChunks) (n - Bytes.length chunk)
+            Left err -> pure (Left (Transport err))
     finish (ChunksCons post ChunksNil) (len - Bytes.length post)
 
 splitEndOfHeaders :: Bytes -> Maybe (Bytes, Bytes)
@@ -195,7 +202,7 @@ splitEndOfHeaders !b = case Bytes.findTetragramIndex 0x0D 0x0A 0x0D 0x0A b of
   Nothing -> Nothing
   Just n -> Just (Bytes.unsafeTake (n + 4) b, Bytes.unsafeDrop (n + 4) b)
 
-lookupTransferEncoding :: SmallArray Header -> Either Exception TransferEncoding
+lookupTransferEncoding :: SmallArray Header -> Either HttpException TransferEncoding
 lookupTransferEncoding !hdrs =
   case List.find (\Header{name} -> T.toLower name == "transfer-encoding") hdrs of
     Just Header{value} -> case value of
@@ -203,7 +210,7 @@ lookupTransferEncoding !hdrs =
       _ -> Left E.UnrecognizedTransferEncoding
     Nothing -> Right Nonchunked
 
-lookupContentLength :: SmallArray Header -> Either Exception Int
+lookupContentLength :: SmallArray Header -> Either HttpException Int
 lookupContentLength !hdrs =
   case List.find (\Header{name} -> T.toLower name == "content-length") hdrs of
     Nothing -> Right 0

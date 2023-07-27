@@ -4,7 +4,7 @@
 
 module OkChannel
   ( M(..)
-  , Exception(..)
+  , TransportException(..)
   , Resource
   , send
   , receive
@@ -18,26 +18,25 @@ import qualified Data.Bytes.Chunks as Chunks
 
 type Resource = ()
 
-data Exception = ExpectedMoreInput
+data TransportException = ExpectedMoreInput
   deriving (Show)
 
 -- First arg is input, second arg is output
 -- The input is peeled off one byte sequence at a time by receive
 -- We use this feature to feed input byte-by-byte to test streaming
 -- features.
-data M a = M (Chunks -> Bytes -> Either Exception (Chunks,Bytes,a))
+data M a = M (Chunks -> Bytes -> (Chunks,Bytes,a))
   deriving stock (Functor)
 
 bindM :: M a -> (a -> M b) -> M b
 bindM (M f) g = M $ \inbound0 outbound0 ->
   case f inbound0 outbound0 of
-    Left e -> Left e
-    Right (inbound1,outbound1,a) ->
+    (inbound1,outbound1,a) ->
       case g a of
         M h -> h inbound1 outbound1
 
 pureM :: a -> M a
-pureM a = M $ \x y -> Right (x,y,a)
+pureM a = M $ \x y -> (x,y,a)
 
 instance Applicative M where
   pure = pureM
@@ -49,17 +48,17 @@ instance Monad M where
 send ::
      ()
   -> Chunks
-  -> M ()
+  -> M (Either TransportException ())
 send _ b = M $ \inbound outbound ->
-  Right (inbound,outbound <> Chunks.concat b,())
+  (inbound,outbound <> Chunks.concat b,Right ())
 
 receive ::
      ()
-  -> M Bytes
+  -> M (Either TransportException Bytes)
 receive _ = M $ \inbound0 outbound ->
   let go inbound = case inbound of
-        ChunksNil -> Left ExpectedMoreInput
+        ChunksNil -> (inbound,outbound,Left ExpectedMoreInput)
         ChunksCons b ch -> case Bytes.null b of
           True -> go ch
-          False -> Right (ch,outbound,b)
+          False -> (ch,outbound,Right b)
    in go inbound0
