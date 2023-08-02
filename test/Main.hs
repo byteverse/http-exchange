@@ -55,12 +55,24 @@ tests = testGroup "tests"
       Ascii.fromString "hello to my friends." @=? Chunks.concat body
       mempty @=? input
       Chunks.concat (Request.bodiedToChunks getReqA) @=? output
+  , testCase "get-chunked-two-by-two-b" $ do
+      (input,output,Bodied{body}) <- evaluateM (E.exchange () getReqA) (bytesToDoubletonByteChunks getRespChunkedB)
+      Ascii.fromString "hello to my friends." @=? Chunks.concat body
+      mempty @=? input
+      Chunks.concat (Request.bodiedToChunks getReqA) @=? output
   ]
 
 bytesToSingleByteChunks :: Bytes -> Chunks
 bytesToSingleByteChunks = Bytes.foldr'
   (\w acc -> ChunksCons (Bytes.singleton w) acc
   ) ChunksNil
+
+bytesToDoubletonByteChunks :: Bytes -> Chunks
+bytesToDoubletonByteChunks b0 = go (Exts.toList b0)
+  where
+  go (x : y : zs) = ChunksCons (Exts.fromList [x,y]) (go zs)
+  go [x] = ChunksCons (Bytes.singleton x) ChunksNil
+  go [] = ChunksNil
 
 evaluateM ::
      M (Either E.Exception (Bodied Response))
