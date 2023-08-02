@@ -4,7 +4,8 @@
 
 module OkChannel
   ( M(..)
-  , TransportException(..)
+  , ReceiveException(..)
+  , SendException
   , Resource
   , send
   , receive
@@ -12,14 +13,17 @@ module OkChannel
 
 import Data.Bytes (Bytes)
 import Data.Bytes.Chunks (Chunks(ChunksNil,ChunksCons))
+import Data.Void (Void)
 
 import qualified Data.Bytes as Bytes
 import qualified Data.Bytes.Chunks as Chunks
 
 type Resource = ()
 
-data TransportException = ExpectedMoreInput
+data ReceiveException = ExpectedMoreInput
   deriving (Show)
+
+type SendException = Void
 
 -- First arg is input, second arg is output
 -- The input is peeled off one byte sequence at a time by receive
@@ -48,13 +52,13 @@ instance Monad M where
 send ::
      ()
   -> Chunks
-  -> M (Either TransportException ())
+  -> M (Either SendException ())
 send _ b = M $ \inbound outbound ->
   (inbound,outbound <> Chunks.concat b,Right ())
 
 receive ::
      ()
-  -> M (Either TransportException Bytes)
+  -> M (Either ReceiveException Bytes)
 receive _ = M $ \inbound0 outbound ->
   let go inbound = case inbound of
         ChunksNil -> (inbound,outbound,Left ExpectedMoreInput)

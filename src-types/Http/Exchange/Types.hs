@@ -9,12 +9,15 @@ import qualified Control.Exception as E
 
 data HttpException
   = ChunkTooLarge
+  | ChunkedBodyEndOfInput
+  | NonchunkedBodyEndOfInput
   | ContentLengthMalformed
   | ContentLengthTooLarge
   | ExpectedCrlfAfterChunk
   | ExpectedCrlfAfterChunkLength
   | ExpectedCrlfBeforeChunkLength
   | HeadersMalformed
+  | HeadersEndOfInput
   | HeadersTooLarge
   | ImplementationMistake
     -- ^ If this one happens, there is a mistake in this

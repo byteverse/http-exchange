@@ -8,7 +8,8 @@ import Data.Bytes (Bytes)
 
 data Resource :: Type
 
-data TransportException :: Type
+data SendException :: Type
+data ReceiveException :: Type
 
 data M :: Type -> Type
 instance Functor M
@@ -18,13 +19,15 @@ instance Monad M
 send ::
      Resource
   -> Chunks
-  -> M (Either TransportException ())
+  -> M (Either SendException ())
 
 -- | Receive a chunk of input. The caller does not specify a
 -- size hint. This helps make the test suite easier to write, but
 -- we should probably figure out a way to support size hints as well.
 --
--- Postcondition: the returned chunked is not empty.
+-- Postcondition: If the returned chunked is empty, the source has
+-- shut down. The indefinite module @Exchange@ interprets a zero-length
+-- chunk to mean that the source has reached the end of its input.
 receive ::
      Resource
-  -> M (Either TransportException Bytes)
+  -> M (Either ReceiveException Bytes)

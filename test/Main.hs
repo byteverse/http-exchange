@@ -82,7 +82,7 @@ evaluateM (M f) resp = case f resp mempty of
   (input,output,r) -> case r of
     Left e -> case e of
       E.Http err -> fail ("exchange http protocol failure: " ++ show err)
-      E.Transport err -> fail ("exchange transport failure: " ++ show err)
+      E.Receive err -> fail ("exchange http transport receive failure: " ++ show err)
     Right b -> pure (input,output,b)
 
 getReqA :: Bodied Request
