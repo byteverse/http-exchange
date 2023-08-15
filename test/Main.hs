@@ -4,20 +4,19 @@
 import Test.Tasty (TestTree,testGroup,defaultMain)
 import Test.Tasty.HUnit (testCase,(@=?))
 import Data.Bytes (Bytes)
-import Http.Message.Request (Request(Request),RequestLine(RequestLine))
-import Http.Bodied (Bodied(Bodied))
-import Http.Header (Header(Header))
+import Http.Request (Request(Request),RequestLine(RequestLine))
+import Http.Types (Response, Bodied(Bodied), Header(Header))
 import OkChannel (M(M))
 import Data.Bytes.Chunks (Chunks(ChunksCons,ChunksNil))
-import Http.Message.Response (Response)
 
 import qualified Data.Bytes as Bytes
 import qualified Data.Bytes.Chunks as Chunks
 import qualified GHC.Exts as Exts
 import qualified OkExchange as E
 import qualified Http.Header
+import qualified Http.Headers as Headers
 import qualified Http.Bodied
-import qualified Http.Message.Request as Request
+import qualified Http.Request as Request
 import qualified Data.Bytes.Text.Ascii as Ascii
 
 main :: IO ()
@@ -91,10 +90,8 @@ getReqA = Bodied
     { requestLine=RequestLine
       { method = "GET"
       , path = "/health"
-      , versionMajor = 1
-      , versionMinor = 1
       }
-    , headers = Exts.fromList
+    , headers = Headers.fromArray $ Exts.fromList
       [ Header{name="Host",value="example.com"}
       ]
     }

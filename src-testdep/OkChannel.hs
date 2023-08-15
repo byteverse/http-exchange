@@ -6,6 +6,8 @@ module OkChannel
   ( M(..)
   , ReceiveException(..)
   , SendException
+  , showsPrecReceiveException
+  , showsPrecSendException
   , Resource
   , send
   , receive
@@ -13,7 +15,7 @@ module OkChannel
 
 import Data.Bytes (Bytes)
 import Data.Bytes.Chunks (Chunks(ChunksNil,ChunksCons))
-import Data.Void (Void)
+import Data.Void (Void,absurd)
 
 import qualified Data.Bytes as Bytes
 import qualified Data.Bytes.Chunks as Chunks
@@ -23,7 +25,13 @@ type Resource = ()
 data ReceiveException = ExpectedMoreInput
   deriving (Show)
 
+showsPrecReceiveException :: Int -> ReceiveException -> String -> String
+showsPrecReceiveException = showsPrec
+
 type SendException = Void
+
+showsPrecSendException :: Int -> SendException -> String -> String
+showsPrecSendException _ x _ = absurd x
 
 -- First arg is input, second arg is output
 -- The input is peeled off one byte sequence at a time by receive

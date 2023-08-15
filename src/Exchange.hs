@@ -1,9 +1,12 @@
+{-# language DeriveAnyClass #-}
+{-# language DerivingStrategies #-}
 {-# language DuplicateRecordFields #-}
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
 
 module Exchange
   ( Exception(..)
+  , HttpException(..)
   , exchange
   ) where
 
@@ -12,27 +15,27 @@ import Control.Monad (when)
 import Data.Char (ord)
 import Data.Bytes (Bytes)
 import Data.Bytes.Chunks (Chunks(ChunksCons,ChunksNil))
-import Data.Primitive (SmallArray)
 import Data.Word (Word64)
 import Http.Bodied (Bodied(Bodied))
 import Http.Exchange.Types (HttpException)
 import Http.Header (Header(Header))
-import Http.Message.Request (Request)
-import Http.Message.Response (Response)
+import Http.Types (Request,Response,Headers,LookupException(Duplicate,Missing))
 import Text.Read (readMaybe)
 import Data.Bytes.Parser (Parser)
 
 import qualified Data.Bytes.Parser as Parser
 import qualified Data.Bytes.Parser.Latin as Latin
 import qualified Http.Exchange.Types as E
-import qualified Data.List as List
 import qualified Data.Bytes as Bytes
 import qualified Data.Bytes.Chunks as Chunks
 import qualified Data.Text as T
 import qualified Http.Header
-import qualified Http.Message.Request as Request
-import qualified Http.Message.Response as Response
+import qualified Http.Headers as Headers
+import qualified Http.Request as Request
+import qualified Http.Response as Response
 import qualified Http.Bodied
+import qualified Control.Exception
+import qualified Channel
 
 data Continuation = Continuation
   !Instruction
@@ -73,7 +76,20 @@ data Exception
       -- sockets, end-of-input is not presented as an exception. It is
       -- presented as a zero-length result.
       !ReceiveException
+  deriving anyclass (Control.Exception.Exception)
 
+instance Show Exception where
+  showsPrec d (Http e) = showParen (d > 10)
+    (showString "Http " . showsPrec 11 e)
+  showsPrec d (Send e) = showParen (d > 10)
+    (showString "Send " . Channel.showsPrecSendException 11 e)
+  showsPrec d (Receive e) = showParen (d > 10)
+    (showString "Receive " . Channel.showsPrecReceiveException 11 e)
+
+-- | Send an HTTP request and await a response. This function takes
+-- responsibility for encoding the request and decoding the response.
+-- It deals with the @Transfer-Encoding@ of the response and supports
+-- both chunked and nonchunked responses.
 exchange ::
      Resource
   -> Bodied Request -- http request line and headers
@@ -194,7 +210,7 @@ parserChunkedChunkLengthPostCr !n !chunks0 = Latin.opt >>= \case
     _ -> Parser.fail E.ExpectedCrlfAfterChunkLength
   Nothing -> pure (Continuation (PostCr n) chunks0)
 
-handleNonchunkedBody :: Resource -> Response -> Bytes -> SmallArray Header -> M (Either Exception (Bodied Response))
+handleNonchunkedBody :: Resource -> Response -> Bytes -> Headers -> M (Either Exception (Bodied Response))
 handleNonchunkedBody ctx resp !post !headers = case lookupContentLength headers of
   Left err -> pure (Left (Http err))
   Right len -> do
@@ -216,19 +232,21 @@ splitEndOfHeaders !b = case Bytes.findTetragramIndex 0x0D 0x0A 0x0D 0x0A b of
   Nothing -> Nothing
   Just n -> Just (Bytes.unsafeTake (n + 4) b, Bytes.unsafeDrop (n + 4) b)
 
-lookupTransferEncoding :: SmallArray Header -> Either HttpException TransferEncoding
+lookupTransferEncoding :: Headers -> Either HttpException TransferEncoding
 lookupTransferEncoding !hdrs =
-  case List.find (\Header{name} -> T.toLower name == "transfer-encoding") hdrs of
-    Just Header{value} -> case value of
+  case Headers.lookupTransferEncoding hdrs of
+    Right Header{value} -> case value of
       "chunked" -> Right Chunked
-      _ -> Left E.UnrecognizedTransferEncoding
-    Nothing -> Right Nonchunked
+      _ -> Left E.TransferEncodingUnrecognized
+    Left Missing -> Right Nonchunked
+    Left Duplicate -> Left E.TransferEncodingDuplicated
 
-lookupContentLength :: SmallArray Header -> Either HttpException Int
+lookupContentLength :: Headers -> Either HttpException Int
 lookupContentLength !hdrs =
-  case List.find (\Header{name} -> T.toLower name == "content-length") hdrs of
-    Nothing -> Right 0
-    Just Header{value} -> case readMaybe (T.unpack value) of
+  case Headers.lookupContentLength hdrs of
+    Left Missing -> Right 0
+    Left Duplicate -> Left E.ContentLengthDuplicated
+    Right Header{value} -> case readMaybe (T.unpack value) of
       Nothing -> Left E.ContentLengthMalformed
       Just i -> do
         when (i > 8_000_000_000) (Left E.ContentLengthTooLarge)

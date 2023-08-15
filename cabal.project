@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/byteverse/http-interchange
+  tag: b706c92092d5a9a538ba779ddb682ed5239fd94b

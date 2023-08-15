@@ -6,16 +6,32 @@ import Data.Kind (Type)
 import Data.Bytes.Chunks (Chunks)
 import Data.Bytes (Bytes)
 
+-- | A resource that, in the monadic context @M@, can be used to send
+-- and receive data. Typically instantiated to a network socket type.
 data Resource :: Type
 
+-- | Exceptions that can occur while sending data.
 data SendException :: Type
+
+showsPrecSendException ::
+  Int -> SendException -> String -> String
+
+-- | Exceptions that can occur while receiving data.
 data ReceiveException :: Type
 
+showsPrecReceiveException ::
+  Int -> ReceiveException -> String -> String
+
+-- | The monadic context in which an HTTP exchange takes place. This
+-- is always instantiated with 'IO' when building a real HTTP client,
+-- but the test suite uses a different non-IO context that is fully
+-- deterministic.
 data M :: Type -> Type
 instance Functor M
 instance Applicative M
 instance Monad M
 
+-- | Send bytes.
 send ::
      Resource
   -> Chunks

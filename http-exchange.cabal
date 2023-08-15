@@ -1,4 +1,4 @@
-cabal-version: 3.4
+cabal-version: 3.0
 name: http-exchange
 version: 0.1.1.0
 synopsis: Perform HTTP Requests
@@ -25,7 +25,7 @@ library testdep
   build-depends:
     , base >=4.17.1.0 && <5
     , byteslice >=0.2.11
-    , http-exchange:types
+    , types
   hs-source-dirs: src-testdep
   default-language: GHC2021
 
@@ -35,9 +35,9 @@ library
   exposed-modules: Exchange
   build-depends:
     , base >=4.17.1.0 && <5
-    , http-interchange
+    , http-interchange >=0.3
     , text >= 2.0
-    , http-exchange:types
+    , types
     , primitive >=0.8
     , byteslice >=0.2.11
     , bytesmith >=0.3.9
@@ -52,9 +52,9 @@ test-suite test
   main-is: Main.hs
   build-depends:
     , base >=4.17.1.0 && <5
-    , http-interchange
+    , http-interchange >=0.2
     , http-exchange
-    , http-exchange:testdep
+    , testdep
     , tasty >=1.4.3
     , tasty-hunit >=0.10.0.3
     , byteslice
