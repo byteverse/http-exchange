@@ -15,7 +15,7 @@ extra-doc-files: CHANGELOG.md
 library types
   ghc-options: -Wall
   exposed-modules: Http.Exchange.Types
-  build-depends: base >=4.17.1.0 && <5
+  build-depends: base >=4.16.3.0 && <5
   hs-source-dirs: src-types
   default-language: GHC2021
 
@@ -23,7 +23,7 @@ library testdep
   ghc-options: -Wall
   exposed-modules: OkChannel
   build-depends:
-    , base >=4.17.1.0 && <5
+    , base >=4.16.3.0 && <5
     , byteslice >=0.2.11
     , types
   hs-source-dirs: src-testdep
@@ -34,8 +34,8 @@ library
   ghc-options: -Wall
   exposed-modules: Exchange
   build-depends:
-    , base >=4.17.1.0 && <5
-    , http-interchange >=0.3
+    , base >=4.16.3.0 && <5
+    , http-interchange >=0.3.1
     , text >= 2.0
     , types
     , primitive >=0.8
@@ -51,8 +51,8 @@ test-suite test
   hs-source-dirs: test
   main-is: Main.hs
   build-depends:
-    , base >=4.17.1.0 && <5
-    , http-interchange >=0.2
+    , base >=4.16.3.0 && <5
+    , http-interchange >=0.3.1
     , http-exchange
     , testdep
     , tasty >=1.4.3
