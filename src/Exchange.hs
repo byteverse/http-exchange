@@ -107,7 +107,7 @@ receiveResponse !ctx = do
   let go !oldOutput = receive ctx >>= \case
         Left err -> pure (Left (Receive err))
         Right newOutput -> case Bytes.length newOutput of
-          0 -> pure (Left (Http E.HeadersEndOfInput))
+          0 -> pure (Left (Http (E.HeadersEndOfInput oldOutput)))
           _ -> do
             let output = oldOutput <> newOutput
             case splitEndOfHeaders output of

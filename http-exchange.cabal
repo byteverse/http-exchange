@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: http-exchange
-version: 0.1.1.0
+version: 0.2.0.0
 synopsis: Perform HTTP Requests
 description: Perform HTTP requests. This uses backpack and is agnostic to the backend.
 license: BSD-3-Clause
@@ -15,7 +15,9 @@ extra-doc-files: CHANGELOG.md
 library types
   ghc-options: -Wall
   exposed-modules: Http.Exchange.Types
-  build-depends: base >=4.16.3.0 && <5
+  build-depends:
+    , base >=4.16.3.0 && <5
+    , byteslice >=0.2.11.1
   hs-source-dirs: src-types
   default-language: GHC2021
 
@@ -45,7 +47,7 @@ library
   default-language: GHC2021
 
 test-suite test
-  ghc-options: -Wall -O1
+  ghc-options: -Wall
   default-language: GHC2021
   type: exitcode-stdio-1.0
   hs-source-dirs: test
