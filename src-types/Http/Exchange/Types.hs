@@ -1,17 +1,18 @@
-{-# language DeriveAnyClass #-}
-{-# language DerivingStrategies #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 
-module Http.Exchange.Types
-  ( HttpException(..)
-  ) where
+module Http.Exchange.Types (
+  HttpException (..),
+) where
 
+import Control.Exception qualified as E
 import Data.Bytes (Bytes)
-import qualified Control.Exception as E
 
--- | Exceptions that occur when decoding an HTTP response.
--- If this happens, the only way to proceed is to
--- shut down the connection. Either the server does not
--- speak HTTP correct, or there is a mistake in this libary.
+{- | Exceptions that occur when decoding an HTTP response.
+If this happens, the only way to proceed is to
+shut down the connection. Either the server does not
+speak HTTP correct, or there is a mistake in this libary.
+-}
 data HttpException
   = ChunkTooLarge
   | ChunkedBodyEndOfInput
@@ -23,13 +24,13 @@ data HttpException
   | ExpectedCrlfAfterChunkLength
   | ExpectedCrlfBeforeChunkLength
   | HeadersMalformed
-  | HeadersEndOfInput
+  | -- | The entire contents of the response.
+    HeadersEndOfInput
       {-# UNPACK #-} !Bytes
-      -- ^ The entire contents of the response. 
   | HeadersTooLarge
-  | ImplementationMistake
-    -- ^ If this one happens, there is a mistake in this
+  | -- | If this one happens, there is a mistake in this
     -- library.
+    ImplementationMistake
   | NonNumericChunkLength
   | PipelinedResponses
   | TransferEncodingUnrecognized
