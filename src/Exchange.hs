@@ -4,12 +4,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Exchange (
-  Exception (..),
-  HttpException (..),
-  exchange,
-  exchangeDiscardBody,
-) where
+module Exchange
+  ( Exception (..)
+  , HttpException (..)
+  , exchange
+  , exchangeDiscardBody
+  ) where
 
 import Channel (M, ReceiveException, Resource, SendException, receive, send)
 import Control.Monad (when)
@@ -156,7 +156,7 @@ receiveResponsePreserveBody ::
 receiveResponsePreserveBody !ctx =
   receiveHeaders ctx >>= \case
     Left err -> pure (Left err)
-    Right (resp@Response.Response{headers}, post) -> case lookupTransferEncoding headers of
+    Right (resp@Response.Response {headers}, post) -> case lookupTransferEncoding headers of
       Left err -> pure (Left (Http err))
       Right enc -> case enc of
         Nonchunked -> handleNonchunkedBody ctx resp post headers
@@ -168,7 +168,7 @@ receiveResponseDiscardBody ::
 receiveResponseDiscardBody !ctx =
   receiveHeaders ctx >>= \case
     Left err -> pure (Left err)
-    Right (resp@Response.Response{headers}, post) -> case lookupTransferEncoding headers of
+    Right (resp@Response.Response {headers}, post) -> case lookupTransferEncoding headers of
       Left err -> pure (Left (Http err))
       Right enc -> case enc of
         Nonchunked -> discardNonchunkedBody ctx resp post headers
@@ -322,7 +322,7 @@ splitEndOfHeaders !b = case Bytes.findTetragramIndex 0x0D 0x0A 0x0D 0x0A b of
 lookupTransferEncoding :: Headers -> Either HttpException TransferEncoding
 lookupTransferEncoding !hdrs =
   case Headers.lookupTransferEncoding hdrs of
-    Right Header{value} -> case value of
+    Right Header {value} -> case value of
       "chunked" -> Right Chunked
       _ -> Left E.TransferEncodingUnrecognized
     Left Missing -> Right Nonchunked
@@ -333,7 +333,7 @@ lookupContentLength !hdrs =
   case Headers.lookupContentLength hdrs of
     Left Missing -> Right 0
     Left Duplicate -> Left E.ContentLengthDuplicated
-    Right Header{value} -> case readMaybe (T.unpack value) of
+    Right Header {value} -> case readMaybe (T.unpack value) of
       Nothing -> Left E.ContentLengthMalformed
       Just i -> do
         when (i > 8_000_000_000) (Left E.ContentLengthTooLarge)

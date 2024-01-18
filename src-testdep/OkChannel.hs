@@ -2,16 +2,16 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE KindSignatures #-}
 
-module OkChannel (
-  M (..),
-  ReceiveException (..),
-  SendException,
-  showsPrecReceiveException,
-  showsPrecSendException,
-  Resource,
-  send,
-  receive,
-) where
+module OkChannel
+  ( M (..)
+  , ReceiveException (..)
+  , SendException
+  , showsPrecReceiveException
+  , showsPrecSendException
+  , Resource
+  , send
+  , receive
+  ) where
 
 import Data.Bytes (Bytes)
 import Data.Bytes.Chunks (Chunks (ChunksCons, ChunksNil))

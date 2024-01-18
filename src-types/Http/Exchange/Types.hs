@@ -1,9 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module Http.Exchange.Types (
-  HttpException (..),
-) where
+module Http.Exchange.Types
+  ( HttpException (..)
+  ) where
 
 import Control.Exception qualified as E
 import Data.Bytes (Bytes)
@@ -48,7 +48,7 @@ instance Show HttpException where
   showsPrec _ ExpectedCrlfAfterChunkLength = showString "ExpectedCrlfAfterChunkLength"
   showsPrec _ ExpectedCrlfBeforeChunkLength = showString "ExpectedCrlfBeforeChunkLength"
   showsPrec _ HeadersMalformed = showString "HeadersMalformed"
-  showsPrec _ HeadersEndOfInput{} = showString "HeadersEndOfInput{..}"
+  showsPrec _ HeadersEndOfInput {} = showString "HeadersEndOfInput{..}"
   showsPrec _ HeadersTooLarge = showString "HeadersTooLarge"
   showsPrec _ ImplementationMistake = showString "ImplementationMistake"
   showsPrec _ NonNumericChunkLength = showString "NonNumericChunkLength"

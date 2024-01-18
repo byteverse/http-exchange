@@ -27,37 +27,37 @@ tests =
   testGroup
     "tests"
     [ testCase "get-a" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespA)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespA)
         body @=? ChunksNil
         input @=? mempty
         output @=? Chunks.concat (Request.bodiedToChunks getReqA)
     , testCase "get-chunked-a" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespChunkedA)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespChunkedA)
         body @=? ChunksNil
         input @=? mempty
         output @=? Chunks.concat (Request.bodiedToChunks getReqA)
     , testCase "get-chunked-byte-by-byte-a" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (bytesToSingleByteChunks getRespChunkedA)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (bytesToSingleByteChunks getRespChunkedA)
         body @=? ChunksNil
         input @=? mempty
         output @=? Chunks.concat (Request.bodiedToChunks getReqA)
     , testCase "get-body-a" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespBodyA)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespBodyA)
         input @=? mempty
         body @=? ChunksCons (Ascii.fromString "helloworld") ChunksNil
         output @=? Chunks.concat (Request.bodiedToChunks getReqA)
     , testCase "get-chunked-b" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespChunkedB)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (Chunks.fromBytes getRespChunkedB)
         Ascii.fromString "hello to my friends." @=? Chunks.concat body
         mempty @=? input
         Chunks.concat (Request.bodiedToChunks getReqA) @=? output
     , testCase "get-chunked-byte-by-byte-b" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (bytesToSingleByteChunks getRespChunkedB)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (bytesToSingleByteChunks getRespChunkedB)
         Ascii.fromString "hello to my friends." @=? Chunks.concat body
         mempty @=? input
         Chunks.concat (Request.bodiedToChunks getReqA) @=? output
     , testCase "get-chunked-two-by-two-b" $ do
-        (input, output, Bodied{body}) <- evaluateM (E.exchange () getReqA) (bytesToDoubletonByteChunks getRespChunkedB)
+        (input, output, Bodied {body}) <- evaluateM (E.exchange () getReqA) (bytesToDoubletonByteChunks getRespChunkedB)
         Ascii.fromString "hello to my friends." @=? Chunks.concat body
         mempty @=? input
         Chunks.concat (Request.bodiedToChunks getReqA) @=? output
@@ -101,7 +101,7 @@ getReqA =
           , headers =
               Headers.fromArray $
                 Exts.fromList
-                  [ Header{name = "Host", value = "example.com"}
+                  [ Header {name = "Host", value = "example.com"}
                   ]
           }
     , body = mempty
