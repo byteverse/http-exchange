@@ -1,10 +1,10 @@
-{-# language DeriveFunctor #-}
-{-# language DerivingStrategies #-}
-{-# language KindSignatures #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE KindSignatures #-}
 
 module OkChannel
-  ( M(..)
-  , ReceiveException(..)
+  ( M (..)
+  , ReceiveException (..)
   , SendException
   , showsPrecReceiveException
   , showsPrecSendException
@@ -14,11 +14,11 @@ module OkChannel
   ) where
 
 import Data.Bytes (Bytes)
-import Data.Bytes.Chunks (Chunks(ChunksNil,ChunksCons))
-import Data.Void (Void,absurd)
+import Data.Bytes.Chunks (Chunks (ChunksCons, ChunksNil))
+import Data.Void (Void, absurd)
 
-import qualified Data.Bytes as Bytes
-import qualified Data.Bytes.Chunks as Chunks
+import Data.Bytes qualified as Bytes
+import Data.Bytes.Chunks qualified as Chunks
 
 type Resource = ()
 
@@ -37,18 +37,18 @@ showsPrecSendException _ x _ = absurd x
 -- The input is peeled off one byte sequence at a time by receive
 -- We use this feature to feed input byte-by-byte to test streaming
 -- features.
-data M a = M (Chunks -> Bytes -> (Chunks,Bytes,a))
+data M a = M (Chunks -> Bytes -> (Chunks, Bytes, a))
   deriving stock (Functor)
 
 bindM :: M a -> (a -> M b) -> M b
 bindM (M f) g = M $ \inbound0 outbound0 ->
   case f inbound0 outbound0 of
-    (inbound1,outbound1,a) ->
+    (inbound1, outbound1, a) ->
       case g a of
         M h -> h inbound1 outbound1
 
 pureM :: a -> M a
-pureM a = M $ \x y -> (x,y,a)
+pureM a = M $ \x y -> (x, y, a)
 
 instance Applicative M where
   pure = pureM
@@ -58,19 +58,19 @@ instance Monad M where
   (>>=) = bindM
 
 send ::
-     ()
-  -> Chunks
-  -> M (Either SendException ())
+  () ->
+  Chunks ->
+  M (Either SendException ())
 send _ b = M $ \inbound outbound ->
-  (inbound,outbound <> Chunks.concat b,Right ())
+  (inbound, outbound <> Chunks.concat b, Right ())
 
 receive ::
-     ()
-  -> M (Either ReceiveException Bytes)
+  () ->
+  M (Either ReceiveException Bytes)
 receive _ = M $ \inbound0 outbound ->
   let go inbound = case inbound of
-        ChunksNil -> (inbound,outbound,Left ExpectedMoreInput)
+        ChunksNil -> (inbound, outbound, Left ExpectedMoreInput)
         ChunksCons b ch -> case Bytes.null b of
           True -> go ch
-          False -> (ch,outbound,Right b)
+          False -> (ch, outbound, Right b)
    in go inbound0
